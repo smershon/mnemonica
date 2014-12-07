@@ -52,3 +52,6 @@ docs/_build/
 
 # PyBuilder
 target/
+
+# Specific to mnemonica
+mnemonica/data
