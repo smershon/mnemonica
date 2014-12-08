@@ -1,7 +1,22 @@
 import sys
 import sqlite3
 
-db = 'data/mnemonica.db'
+DEFAULT_DB_PATH = 'data/mnemonica.db'
+
+def memdb(func):
+    def inner(*args, **kwargs):
+        conn = kwargs.get('conn')
+        if not conn:
+            conn = sqlite3.connect(DEFAULT_DB_PATH)
+            kwargs.update(conn=conn)
+            ret = func(*args, **kwargs)
+            conn.commit()
+            conn.close()
+        else:
+            ret = func(*args, **kwargs)
+        return ret
+
+    return inner
 
 class Country(object):
     name = ''
@@ -18,8 +33,8 @@ class Country(object):
             self.area, self.highest_point, self.neighbors)
 
 
-def create_schema():
-    conn = sqlite3.connect(db)
+@memdb
+def create_schema(conn):
     c = conn.cursor()
     c.execute("""
         CREATE TABLE data (
@@ -31,18 +46,14 @@ def create_schema():
             highest_point integer,
             neighbors text)
         """)
-    conn.commit()
-    conn.close()
 
-def get_country(country_name):
-    conn = sqlite3.connect(db)
+@memdb
+def get_country(country_name, conn):
     c = conn.cursor()
     c.execute("""
         SELECT * FROM data WHERE country=?""",
         (country_name,))
     result = c.fetchone()
-    conn.commit()
-    conn.close()
 
     country = Country()
     if result:
@@ -58,11 +69,10 @@ def get_country(country_name):
 
     return country
 
-def add_country(country):
-    print country
+@memdb
+def add_country(country, conn):
     largest_cities = '\t'.join(country.largest_cities)
     neighbors = '\t'.join(country.neighbors)
-    conn = sqlite3.connect(db)
     c = conn.cursor()
     c.execute("""
         DELETE FROM data WHERE country=?""",
@@ -76,9 +86,6 @@ def add_country(country):
          country.area,
          country.highest_point,
          neighbors))
-    print c.rowcount
-    conn.commit()
-    conn.close()
 
 def add_fact(country, field, value):
     """
